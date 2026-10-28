@@ -1,0 +1,12 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+data/uploads/
+data/vectors/
+data/graphs/
+data/kgrag.sqlite3
+pip-*/
+.git/
+.vscode/
+.idea/

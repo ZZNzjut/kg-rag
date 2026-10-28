@@ -1,0 +1,8 @@
+# 运行本身零第三方依赖；以下为可选增强。
+# 安装：pip install -r requirements.txt
+fastapi>=0.110        # 有则自动使用 FastAPI 后端，没有则退回标准库 http.server
+uvicorn>=0.29         # FastAPI 的 ASGI 服务器
+python-docx>=1.1      # .docx 解析
+openpyxl>=3.1         # .xlsx 解析
+python-pptx>=0.6.23   # .pptx 解析
+pypdf>=4.0            # .pdf 解析（纯 Python）

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>KGRAG · 企业知识库图谱与 RAG 问答</title>
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">KG</div>
+    <div>
+      <h1>KGRAG <span class="ver">复现版</span></h1>
+      <p>企业知识库 · 知识图谱生成与 RAG 智能问答</p>
+    </div>
+  </div>
+  <div class="status" id="status">
+    <span class="dot"></span><span id="status-text">连接中…</span>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="upload" class="active">① 上传文档</button>
+  <button data-tab="build">② 构建图谱</button>
+  <button data-tab="graph">③ 图谱可视化</button>
+  <button data-tab="qa">④ 智能问答</button>
+</nav>
+
+<main>
+  <!-- 上传 -->
+  <section class="panel active" id="panel-upload">
+    <div class="card">
+      <div class="card-head">
+        <h2>文档入库</h2>
+        <span class="hint">支持 .md .txt .csv .docx .xlsx .pptx .pdf</span>
+      </div>
+      <div class="dropzone" id="dropzone">
+        <div class="dz-icon">⇪</div>
+        <p><strong>拖拽文件到这里</strong> 或 <label class="link" for="file-input">选择文件</label></p>
+        <input id="file-input" type="file" multiple hidden />
+        <p class="dz-sub">上传后自动解析、切块、向量化（本地 TF-IDF，无需 API Key）</p>
+      </div>
+      <div class="progress" id="upload-progress" hidden><div class="bar"></div><span></span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>已入库文档</h2>
+        <button class="btn ghost sm" id="btn-refresh-files">刷新</button>
+      </div>
+      <table class="table" id="file-table">
+        <thead><tr><th>文件</th><th>标题</th><th class="num">切块</th><th class="num">大小</th><th>状态</th></tr></thead>
+        <tbody><tr><td colspan="5" class="empty">还没有文档，先上传一份试试</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 建图 -->
+  <section class="panel" id="panel-build">
+    <div class="card">
+      <div class="card-head">
+        <h2>知识图谱构建</h2>
+        <span class="hint">规则抽取（实体 + 关系三元组），有 LLM Key 时可叠加语义抽取</span>
+      </div>
+      <div class="row">
+        <label class="check"><input type="checkbox" id="use-llm" /> 使用 LLM 增强抽取</label>
+        <label class="check"><input type="checkbox" id="rebuild-reset" /> 先清空旧数据</label>
+        <button class="btn primary" id="btn-build">开始构建</button>
+      </div>
+      <p class="muted" id="build-msg">等待构建…</p>
+    </div>
+    <div class="grid4" id="build-stats" hidden>
+      <div class="stat"><span id="st-nodes">0</span><label>实体节点</label></div>
+      <div class="stat"><span id="st-edges">0</span><label>关系边</label></div>
+      <div class="stat"><span id="st-triplets">0</span><label>三元组</label></div>
+      <div class="stat"><span id="st-time">0ms</span><label>耗时</label></div>
+    </div>
+    <div class="card" id="build-detail" hidden>
+      <div class="card-head"><h2>抽取概况</h2></div>
+      <div class="kv-block">
+        <div><h3>实体类型</h3><div class="chips" id="chips-types"></div></div>
+        <div><h3>关系类型</h3><div class="chips" id="chips-rels"></div></div>
+        <div><h3>核心实体</h3><div class="chips" id="chips-top"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 图谱 -->
+  <section class="panel" id="panel-graph">
+    <div class="graph-wrap card">
+      <div class="graph-toolbar">
+        <input id="node-search" class="input sm" placeholder="搜索实体，如 OA系统" />
+        <button class="btn sm" id="btn-focus">定位</button>
+        <label class="check sm">显示
+          <input type="range" id="graph-limit" min="20" max="200" step="10" value="120" />
+        </label>
+        <label class="check sm"><input type="checkbox" id="show-cooc" checked /> 共现边</label>
+        <span class="spacer"></span>
+        <span class="muted" id="graph-msg">尚未加载图谱</span>
+      </div>
+      <div class="graph-body">
+        <canvas id="graph-canvas"></canvas>
+        <aside class="side" id="graph-side">
+          <p class="empty">点击节点查看详情</p>
+        </aside>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </section>
+
+  <!-- 问答 -->
+  <section class="panel" id="panel-qa">
+    <div class="card">
+      <div class="card-head"><h2>提问</h2><span class="hint" id="qa-mode-hint">检索：向量 / BM25 / 实体关系 / 位置 → 加权融合</span></div>
+      <textarea id="question" rows="3" placeholder="例如：出差住宿标准是多少？P1 故障多久响应？离职后账号什么时候删除？"></textarea>
+      <div class="row">
+        <select id="file-filter" class="input sm"><option value="">全部文档</option></select>
+        <label class="check"><input type="checkbox" id="use-graph" checked /> 启用实体关系路</label>
+        <span class="spacer"></span>
+        <button class="btn primary" id="btn-ask">提问</button>
+      </div>
+    </div>
+
+    <div class="card answer-card" id="answer-card" hidden>
+      <div class="card-head">
+        <h2>回答 <span class="badge" id="answer-mode">extractive</span></h2>
+        <span class="muted" id="answer-meta"></span>
+      </div>
+      <div class="answer" id="answer-text"></div>
+      <div class="routes" id="answer-routes"></div>
+      <h3 class="sub">引用来源</h3>
+      <ol class="cites" id="answer-cites"></ol>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>问答历史</h2><button class="btn ghost sm" id="btn-clear-history">清空</button></div>
+      <ul class="history" id="history-list"><li class="empty">暂无记录</li></ul>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">本地复现版 · 四路召回 + 知识图谱 · 无需外部服务即可运行</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>
